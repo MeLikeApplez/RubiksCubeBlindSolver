@@ -23,7 +23,7 @@ export default class RubiksCube {
     create() {
         this.corners = [
             new Cube({ placement: 'corner', white: 'A', orange: 'E', blue: 'R' }),
-            new Cube({ placement: 'corner', white: 'B', red: 'M', blue: 'Q' }),
+            new Cube({ placement: 'corner', white: 'B', red: 'N', blue: 'Q' }),
             new Cube({ placement: 'corner', white: 'C', green: 'J', red: 'M' }),
             new Cube({ placement: 'corner', white: 'D', orange: 'F', green: 'I' }),
             
