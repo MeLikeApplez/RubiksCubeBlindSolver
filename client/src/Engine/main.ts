@@ -37,17 +37,26 @@ export default function main(canvas: HTMLCanvasElement) {
         R U R' U' R' F R2 U' R' U' R U R' F'
         L2 D' Lw2 
     `)
+    const test6 = new Notation(`B2 R2 B2 L U2 R' B2 R2 B2 R' U' B' F L' B D R B2 D B' D' U`)
+    const test7 = new Notation(`U' L2 D' U R2 B' D' U' L2 B2 R' U' B' F' L U2 F R2 U'`)
 
     rubiksCube.addToScene(scene)
     
+    // Edge Test
     // rubiksCube.turnWithNotation(test1)
-    // rubiksCube.turnWithNotation(test2)
-    rubiksCube.turnWithNotation(test3)
     // rubiksCube.turnWithNotation(test4)
     // rubiksCube.turnWithNotation(test5)
 
+    // Edge & Corner Test
+    // rubiksCube.turnWithNotation(test2)
+    // rubiksCube.turnWithNotation(test3)
+    // rubiksCube.turnWithNotation(test6)
+    // rubiksCube.turnWithNotation(test7)
+
     // console.log(rubiksCube)
-    solver.solve()
+    console.log(
+        solver.solve()
+    )
 
     function animate() {
         controls.update()
