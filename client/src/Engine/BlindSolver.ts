@@ -186,8 +186,46 @@ export default class BlindSolver {
      * @description
      *  1. Unsolved buffer => Start at the BUFFER SPOT and end with the BUFFER PIECE
      */
-    solveBuffer(buffer: Cube, cubes: Cube[]) {
+    solveBuffer(type: 'edge' | 'corner', buffer: Cube, cubes: Cube[]) {
+        const solvedCubes: Cube[] = []
+        const solvedMoves: FaceLetters[] = []
+
+        // if(type === 'edge') {
+            let targetCube: Cube = buffer
+            // let targetLetter: FaceLetters = BlindSolver.EDGE_BUFFER_TARGET_SPACE
+            let targetLetter: FaceLetters = type === 'edge' ? BlindSolver.EDGE_BUFFER_TARGET_SPACE : BlindSolver.CORNER_BUFFER_TARGET_SPACE
+
+            // console.log(targetCube)
+
+            for(let i = 0; i < cubes.length; i++) {
+                const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
+
+                if(!swap) {
+                    break
+                }
+                
+                if(i !== 0) {
+                    // console.log(targetLetter)
+
+                    solvedCubes.push(swap)
+                    solvedMoves.push(targetLetter)
+                }
+
+                console.log(swapFace.currentLetter)
+
+                targetCube = swap
+                targetLetter = swapFace.currentLetter
+                cubes = unsolved
+            }
+
+            return {
+                solvedCubes, solvedMoves,
+                unsolvedCubes: cubes
+            }
+        // }
+
         
+        // console.log(this.findSwap(buffer, targetColor, cubes))
     }
 
     /**
@@ -196,13 +234,83 @@ export default class BlindSolver {
      * 2. Solved buffer => Start a new cycle and return to the original starting piece
      *      - Flipped pieces => Pick one side of a piece then find its corresponding solution
      */
-    solveNonBuffer(cubes: Cube[]) {
-       
+    solveNonBuffer(type: 'edge' | 'corner', cubes: Cube[]) {
+        const solvedCubes: Cube[] = []
+        const solvedMoves: FaceLetters[] = []
+        
+        cubes = cubes.filter(cube => !this.isCubeBuffer(cube))
+
+        if(type === 'edge') {
+            let targetCube: Cube = cubes[0]
+            // let targetLetter: FaceLetters = Array.from(targetCube.currentLetters)[0] as FaceLetters
+            let targetLetter: FaceLetters = Array.from(targetCube.currentLetters)[0]
+            let initialMove: FaceLetters = targetLetter
+            let initialCube: Cube = targetCube
+
+            let i = 0
+            while(cubes.length !== 0) {
+                const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
+
+                if(!swap) {
+                    targetCube = cubes[0]
+                    targetLetter = Array.from(targetCube.currentLetters)[0]
+                    
+                    // console.log(initialMove)
+                    solvedMoves.push(initialMove)
+                    solvedCubes.push(initialCube)
+
+                    // console.warn('LOOP')
+                    
+                    i = 0
+
+                    continue
+                }
+
+                targetCube = swap
+                targetLetter = swapFace.currentLetter
+                cubes = unsolved
+
+                if(i === 0) {
+                    initialMove = targetLetter
+                    initialCube = targetCube
+                }
+
+                // console.log(swapFace.currentLetter)
+                solvedMoves.push(swapFace.currentLetter)
+                solvedCubes.push(swap)
+                
+                const isFlipped = swap.isFlipped()
+
+                if(isFlipped) {
+                    const solvedFlipped = this.findSwap(targetCube, targetLetter, [targetCube])
+
+                    // console.warn('flipped')
+                    // console.log(solvedFlipped.swapFace!.currentLetter)
+                    solvedMoves.push(solvedFlipped.swapFace!.currentLetter)
+                    solvedCubes.push(solvedFlipped.swap!)
+                }
+
+                if(cubes.length === 0 && !isFlipped) {
+                    // console.log(initialMove)
+                    solvedMoves.push(initialMove)
+                    solvedCubes.push(initialCube)
+
+                    break
+                }
+
+                i++
+            }
+
+            return {
+                solvedCubes, solvedMoves,
+                unsolvedCubes: cubes
+            }
+        }
     }
 
-    findSwap(targetCube: Cube, targetColor: FaceLetters, cubes: Cube[]) {
-        const targetDirection = Face.getDirectionByLetter(targetColor)
-        
+    findSwap(targetCube: Cube, targetLetter: FaceLetters, cubes: Cube[]) {
+        // const targetDirection = Face.getDirectionByLetter(targetLetter)
+
         const swapIndex = cubes.findIndex(cube => !targetCube.solvedLetters.isDisjointFrom(cube.currentLetters))
 
         if(swapIndex === -1) {
@@ -213,8 +321,9 @@ export default class BlindSolver {
             }
         }
 
+        const targetFace = targetCube.getFaceByLetter(targetLetter)!
         const swap = cubes[swapIndex]
-        const swapFace = swap.getFaceByDirection(targetDirection) as Face
+        const swapFace = swap.getFaceByDirection(targetFace.solvedDirection) as Face
 
         const unsolved: Cube[] = []
 
@@ -246,25 +355,43 @@ export default class BlindSolver {
      */
     solve() {
         const edgeMoves: FaceLetters[] = []
+        const cornerMoves: FaceLetters[] = []
         let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
+        let unsolvedCorners: Cube[] = this.getUnsolvedCorners()
 
+        /*
         if(!this.isEdgeBufferSolved()) {
-            // const edgeBufferSolve = this.solveBuffer(
-                // this.getEdgeBuffer(),
-                // unsolvedEdges
-            // )
+            const edgeBufferSolve = this.solveBuffer(
+                'edge',
+                this.getEdgeBuffer(),
+                unsolvedEdges
+            )
 
-            // edgeMoves.push(...edgeBufferSolve.moves)
-            // unsolvedEdges = edgeBufferSolve.unsolvedCubes
+            edgeMoves.push(...edgeBufferSolve!.solvedMoves)
+            unsolvedEdges = edgeBufferSolve!.unsolvedCubes
 
         }
-        
-        // if(!this.isEdgesSolved()) {
-        //     const edgeNonBufferSolve = this.solveNonBuffer(unsolvedEdges)
+
+        if(!this.isEdgesSolved()) {
+            const edgeNonBufferSolve = this.solveNonBuffer('edge', unsolvedEdges)
             
-        //     edgeMoves.push(...edgeNonBufferSolve.moves)
-        // }
+            edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
+        }
+            */
+
+        if(!this.isCornerBufferSolved()) {
+            const cornerBufferSolve = this.solveBuffer(
+                'corner',
+                this.getCornerBuffer(),
+                unsolvedCorners
+            )
+
+            // console.log(cornerBufferSolve)
+
+            edgeMoves.push(...cornerBufferSolve!.solvedMoves)
+            unsolvedCorners = cornerBufferSolve!.unsolvedCubes
+        }
         
-        console.log(edgeMoves)
+        // console.log(edgeMoves)
     }
 }

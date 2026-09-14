@@ -17,8 +17,10 @@ export type CubePlacement = 'corner' | 'edge' | 'center'
 export default class Cube {
     mesh: THREE.Mesh
     faces: Face[]
-    currentLetters: Set<Omit<FaceLetters, "*">>
-    solvedLetters: Set<Omit<FaceLetters, "*">>
+    currentLetters: Set<FaceLetters>
+    solvedLetters: Set<FaceLetters>
+    // currentLetters: Set<Omit<FaceLetters, "*">>
+    // solvedLetters: Set<Omit<FaceLetters, "*">>
     colors: Set<FaceColors>
     position: THREE.Vector3
     placement: CubePlacement
@@ -115,7 +117,6 @@ export default class Cube {
             const face = this.faces[i]
 
             if(face.currentLetter === letter) {
-
                 return face
             }
         }

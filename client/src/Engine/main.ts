@@ -20,7 +20,7 @@ export default function main(canvas: HTMLCanvasElement) {
     renderer.setAnimationLoop(animate)
     renderer.setSize(window.innerWidth, window.innerHeight)
 
-    camera.position.set(6, 6, 6)
+    camera.position.set(-6, 6, 6)
     
     const rubiksCube = new RubiksCube()
     const solver = new BlindSolver(rubiksCube)
@@ -42,11 +42,11 @@ export default function main(canvas: HTMLCanvasElement) {
     
     // rubiksCube.turnWithNotation(test1)
     // rubiksCube.turnWithNotation(test2)
-    // rubiksCube.turnWithNotation(test3)
+    rubiksCube.turnWithNotation(test3)
     // rubiksCube.turnWithNotation(test4)
-    rubiksCube.turnWithNotation(test5)
+    // rubiksCube.turnWithNotation(test5)
 
-    console.log(rubiksCube)
+    // console.log(rubiksCube)
     solver.solve()
 
     function animate() {
