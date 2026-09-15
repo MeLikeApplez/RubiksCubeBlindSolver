@@ -20,7 +20,7 @@ export default function main(canvas: HTMLCanvasElement) {
     renderer.setAnimationLoop(animate)
     renderer.setSize(window.innerWidth, window.innerHeight)
 
-    camera.position.set(-6, 6, 6)
+    camera.position.set(6, 6, 6)
     
     const rubiksCube = new RubiksCube()
     const solver = new BlindSolver(rubiksCube)
@@ -45,19 +45,24 @@ export default function main(canvas: HTMLCanvasElement) {
     // Edge Test
     // rubiksCube.turnWithNotation(test1)
     // rubiksCube.turnWithNotation(test4)
-    // rubiksCube.turnWithNotation(test5)
 
     // Edge & Corner Test
-    // rubiksCube.turnWithNotation(test2)
+    rubiksCube.turnWithNotation(test2)
     // rubiksCube.turnWithNotation(test3)
     // rubiksCube.turnWithNotation(test6)
     // rubiksCube.turnWithNotation(test7)
 
     // console.log(rubiksCube)
-    console.log(
-        solver.solve()
-    )
+    const solution = solver.solve()
+    
+    // console.log(solution.edgeMoves)
 
+    rubiksCube.turnWithNotation(solution.edgeSolution)
+    // rubiksCube.turnWithNotation(BlindSolver.PARITY)
+    // rubiksCube.turnWithNotation(solution.cornerSolution)
+    
+    // console.log(rubiksCube.isSolved() ? 'Solved!' : 'Unsolved...')
+    
     function animate() {
         controls.update()
         renderer.render(scene, camera)

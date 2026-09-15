@@ -209,4 +209,16 @@ export default class RubiksCube {
             scene.add(this.cubes[i].mesh)
         }
     }
+
+    isSolved() {
+        for(let i = 0; i < this.cubes.length; i++) {
+            const cube = this.cubes[i]
+
+            if(!cube.isSolved()) {
+                return false
+            }
+        }
+
+        return true
+    }
 }

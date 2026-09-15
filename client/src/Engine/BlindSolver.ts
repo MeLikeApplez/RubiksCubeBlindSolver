@@ -24,7 +24,7 @@ export default class BlindSolver {
     static CORNER_BUFFER_TARGET_SPACE: FaceLetters = "E"
     static CORNER_BUFFER_SWAP_SPACE: FaceLetters = "V"
 
-    static EDGE_SETUP = new Map<string, Notation>([
+    static EDGE_SETUP = new Map<FaceLetters, Notation>([
         ['A', new Notation(`Lw2 D' L2`)],
         ['C', new Notation(`Lw2 D L2`)],
         ['D', new Notation(``)],
@@ -37,8 +37,8 @@ export default class BlindSolver {
         ['K', new Notation(`Lw D L2`)],
         ['L', new Notation(`L'`)],
         ['N', new Notation(`Dw L`)],
-        ['O', new Notation(`D2 L' Dw' L`)],
-        ['P', new Notation(`Dw' L`)],
+        ['O', new Notation(`D' Lw D L2`)],
+        ['P', new Notation(`Dw' L'`)],
         ['Q', new Notation(`Lw' D L2`)],
         ['R', new Notation(`L`)],
         ['S', new Notation(`Lw' D' L2`)],
@@ -49,7 +49,7 @@ export default class BlindSolver {
         ['X', new Notation(`L2`)]
     ])
 
-    static CORNER_SETUP = new Map<string, Notation>([
+    static CORNER_SETUP = new Map<FaceLetters, Notation>([
         ['B', new Notation(`R2`)],
         ['C', new Notation(`F2 D`)],
         ['D', new Notation(`F2`)],
@@ -76,6 +76,39 @@ export default class BlindSolver {
     constructor(rubiksCube: RubiksCube) {
         this.rubiksCube = rubiksCube
         this.solution = new Notation()
+    }
+
+    lettersToNotation(type: 'edge' | 'corner', letters: FaceLetters[]) {
+        const moves = new Notation()
+        
+        for(let i = 0; i < letters.length; i++) {
+            const letter = letters[i]
+            const setup = type === 'edge' ? BlindSolver.EDGE_SETUP.get(letter) : BlindSolver.CORNER_SETUP.get(letter)
+
+            if(!setup) {
+                continue
+            }
+
+            const swap = type === 'edge' ? BlindSolver.EDGE_SWAP : BlindSolver.CORNER_SWAP
+
+            // if(i === 3 && type === 'edge') {
+            //     break
+            // }
+
+            // setup
+            moves.addNotation(setup)
+
+            // swap moves
+            moves.addNotation(swap)
+
+            // reverse setup
+            const inverseSetup = setup.clone()
+
+            inverseSetup.inverseMoves()
+            moves.addNotation(inverseSetup)        
+        }
+
+        return moves
     }
 
     isCubeBuffer(cube: Cube) {
@@ -397,8 +430,20 @@ export default class BlindSolver {
             cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
         }
         
+        const edgeSolution = this.lettersToNotation('edge', edgeMoves)
+        const cornerSolution = this.lettersToNotation('corner', cornerMoves)
+        
+        if(edgeMoves.length % 2 === 1 && cornerMoves.length % 2 === 1) {
+            console.log('Parity')
+        }
+        
+        // const solution = new Notation([...edgeSolution.moves, ...cornerSolution.moves])
+        const solution = null
+
         return {
-            edgeMoves, cornerMoves
+            edgeMoves, cornerMoves,
+            edgeSolution, cornerSolution,
+            solution
         }
     }
 }

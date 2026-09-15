@@ -95,18 +95,28 @@ export default class Notation {
 
     static getOppositeMove(move: string) {
         if(!Notation.MOVE_MAP.has(move)) return null
-
-        if(move.search(/M|E|S|w|2/g) === -1) {
+        
+        if(move.search(/M|E|S|2/g) === -1) {
             const hasPrime = move.search(`'`)
-
+            
             if(hasPrime !== -1) {
                 return move.replace(/\'/g, '')
             }
-
+            
             return move + `'`
         }
 
         return move
+    }
+
+    static combine(...notations: Notation[]) {
+        const moves: string[] = []
+        
+        for(let i = 0; i < notations.length; i++) {
+            moves.push(...notations[i].moves)
+        }
+
+        return new Notation(moves)
     }
 
     constructor(moves?: string | string[]) {
@@ -117,8 +127,54 @@ export default class Notation {
         this.moves = []
     }
 
+    addNotation(notation: Notation) {
+        const moves = this.parseMoves(notation.moves)
+
+        this.moves.push(...moves)
+
+        return this.moves
+    }
+
+    addMoves(moves: string | string[]) {
+        moves = this.parseMoves(moves)
+
+        this.moves.push(...moves)
+    
+        return this.moves
+    }
+
     setMoves(moves: string | string[]) {
         this.moves = this.parseMoves(moves)
+    
+        return this.moves
+    }
+
+    /**
+     * @description {Flips every move to its opposite counterpart}
+     */
+    invertMoves() {
+        for(let i = 0; i < this.moves.length; i++) {
+            const move = this.moves[i]
+
+            this.moves[i] = Notation.getOppositeMove(move)!
+        }
+    
+        return this.moves
+    }
+
+    /**
+     * @description {Flips every move to its opposite counterpart and reverses the move list}
+     */
+    inverseMoves() {
+        for(let i = 0; i < this.moves.length; i++) {
+            const move = this.moves[i]
+
+            this.moves[i] = Notation.getOppositeMove(move)!
+        }
+
+        this.moves = this.moves.toReversed()
+    
+        return this.moves
     }
 
     isValid(moves: string | string[]) {
@@ -137,7 +193,7 @@ export default class Notation {
 
     parseMoves(moves: string | string[]) {
         const isMovesArray = Array.isArray(moves)
-        const movesArray = isMovesArray ? moves : Array.from(moves.match(/[^\s]+/g) || [])
+        const movesArray = isMovesArray ? Array.from(moves) : Array.from(moves.match(/[^\s]+/g) || [])
 
         for(let i = 0; i < movesArray.length; i++) {
             const move = movesArray[i].replace(/\s+/g, '')
@@ -148,5 +204,9 @@ export default class Notation {
         }
 
         return movesArray
+    }
+
+    clone() {
+        return new Notation(Array.from(this.moves))
     }
 }
