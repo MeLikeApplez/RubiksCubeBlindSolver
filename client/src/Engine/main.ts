@@ -59,7 +59,7 @@ export default function main(canvas: HTMLCanvasElement) {
 
     // rubiksCube.turnWithNotation(solution.edgeSolution)
     // rubiksCube.turnWithNotation(BlindSolver.PARITY)
-    // rubiksCube.turnWithNotation(solution.cornerSolution)
+    rubiksCube.turnWithNotation(solution.cornerSolution)
     
     // console.log(rubiksCube.isSolved() ? 'Solved!' : 'Unsolved...')
     

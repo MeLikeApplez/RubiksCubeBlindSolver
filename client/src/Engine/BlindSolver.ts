@@ -282,18 +282,86 @@ export default class BlindSolver {
         let initialMove: FaceLetters = targetLetter
         let initialCube: Cube = targetCube
 
+        // /*
+        let i = 0
+        let LOOP_CHECK = 0
+        while(cubes.length !== 0) {
+            if(LOOP_CHECK++ >= 100) {
+                console.error('Infinite Loop!')
+
+                break
+            }
+
+            const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
+
+            if(!swap) {
+                const last = this.findSwap(targetCube, targetLetter, [initialCube])
+
+                // console.log(last.swapFace!.currentLetter)
+                // console.warn('LOOP')
+
+                solvedMoves.push(last.swapFace!.currentLetter)
+                solvedCubes.push(last.swap!)
+
+                targetCube = cubes[0]
+                targetLetter = Array.from(targetCube.currentLetters)[0]
+
+                i = 0
+
+                // break
+                continue
+            }
+
+            if(i === 0) {
+                initialMove = swapFace.currentLetter
+                initialCube = swap
+            }
+
+            // console.log(swapFace.currentLetter)
+            
+            solvedMoves.push(swapFace.currentLetter)
+            solvedCubes.push(swap)
+
+            cubes = unsolved
+
+            // SWAP CASE NEEDS TO BE COVERED
+
+            if(cubes.length === 0) {
+                const last = this.findSwap(swap, swapFace.currentLetter, [initialCube])
+
+                // console.log(last.swapFace!.currentLetter)
+
+                solvedMoves.push(last.swapFace!.currentLetter)
+                solvedCubes.push(last.swap!)
+
+                break
+            }
+
+            targetCube = swap
+            targetLetter = swapFace.currentLetter
+
+            i++
+        }
+            // */
+
+        /*
         let i = 0
         while(cubes.length !== 0) {
             const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
 
             if(!swap) {
+                const last = this.findSwap(targetCube, targetLetter, [initialCube])
+            
                 targetCube = cubes[0]
                 targetLetter = Array.from(targetCube.currentLetters)[0]
-                
-                console.log(initialMove)
-                
-                solvedMoves.push(initialMove)
-                solvedCubes.push(initialCube)
+            
+                solvedMoves.push(last.swapFace!.currentLetter)
+                solvedCubes.push(last.swap!)
+
+                console.log(last.swapFace!.currentLetter)
+
+                // solvedMoves.push(initialMove)
+                // solvedCubes.push(initialCube)
 
                 console.warn('LOOP')
                 
@@ -339,8 +407,10 @@ export default class BlindSolver {
 
             i++
         }
+        */
 
         // console.log(solvedMoves)
+        // solvedMoves.length = 0
 
         // solvedMoves.forEach(m =>console.log(m))
 
@@ -418,17 +488,16 @@ export default class BlindSolver {
             edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
         }
 
-        // if(!this.isCornerBufferSolved()) {
-        //     const cornerBufferSolve = this.solveBuffer(
-        //         'corner',
-        //         this.getCornerBuffer(),
-        //         unsolvedCorners
-        //     )
+        if(!this.isCornerBufferSolved()) {
+            const cornerBufferSolve = this.solveBuffer(
+                'corner',
+                this.getCornerBuffer(),
+                unsolvedCorners
+            )
 
-
-        //     cornerMoves.push(...cornerBufferSolve!.solvedMoves)
-        //     unsolvedCorners = cornerBufferSolve!.unsolvedCubes
-        // }
+            cornerMoves.push(...cornerBufferSolve!.solvedMoves)
+            unsolvedCorners = cornerBufferSolve!.unsolvedCubes
+        }
 
         // if(!this.isCornersSolved()) {
         //     const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
