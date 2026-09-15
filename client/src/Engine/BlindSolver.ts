@@ -290,11 +290,12 @@ export default class BlindSolver {
                 targetCube = cubes[0]
                 targetLetter = Array.from(targetCube.currentLetters)[0]
                 
-                // console.log(initialMove)
+                console.log(initialMove)
+                
                 solvedMoves.push(initialMove)
                 solvedCubes.push(initialCube)
 
-                // console.warn('LOOP')
+                console.warn('LOOP')
                 
                 i = 0
 
@@ -310,7 +311,8 @@ export default class BlindSolver {
                 initialCube = targetCube
             }
 
-            // console.log(swapFace.currentLetter)
+            console.log(swapFace.currentLetter)
+
             solvedMoves.push(swapFace.currentLetter)
             solvedCubes.push(swap)
             
@@ -319,14 +321,16 @@ export default class BlindSolver {
             if(isFlipped) {
                 const solvedFlipped = this.findSwap(targetCube, targetLetter, [targetCube])
 
-                // console.warn('flipped')
-                // console.log(solvedFlipped.swapFace!.currentLetter)
+                console.warn('flipped')
+                console.log(solvedFlipped.swapFace!.currentLetter)
+
                 solvedMoves.push(solvedFlipped.swapFace!.currentLetter)
                 solvedCubes.push(solvedFlipped.swap!)
             }
 
             if(cubes.length === 0 && !isFlipped) {
-                // console.log(initialMove)
+                console.log(initialMove)
+
                 solvedMoves.push(initialMove)
                 solvedCubes.push(initialCube)
 
@@ -337,6 +341,8 @@ export default class BlindSolver {
         }
 
         // console.log(solvedMoves)
+
+        // solvedMoves.forEach(m =>console.log(m))
 
         return {
             solvedCubes, solvedMoves,
@@ -412,23 +418,23 @@ export default class BlindSolver {
             edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
         }
 
-        if(!this.isCornerBufferSolved()) {
-            const cornerBufferSolve = this.solveBuffer(
-                'corner',
-                this.getCornerBuffer(),
-                unsolvedCorners
-            )
+        // if(!this.isCornerBufferSolved()) {
+        //     const cornerBufferSolve = this.solveBuffer(
+        //         'corner',
+        //         this.getCornerBuffer(),
+        //         unsolvedCorners
+        //     )
 
 
-            cornerMoves.push(...cornerBufferSolve!.solvedMoves)
-            unsolvedCorners = cornerBufferSolve!.unsolvedCubes
-        }
+        //     cornerMoves.push(...cornerBufferSolve!.solvedMoves)
+        //     unsolvedCorners = cornerBufferSolve!.unsolvedCubes
+        // }
 
-        if(!this.isCornersSolved()) {
-            const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
+        // if(!this.isCornersSolved()) {
+        //     const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
 
-            cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
-        }
+        //     cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
+        // }
         
         const edgeSolution = this.lettersToNotation('edge', edgeMoves)
         const cornerSolution = this.lettersToNotation('corner', cornerMoves)
