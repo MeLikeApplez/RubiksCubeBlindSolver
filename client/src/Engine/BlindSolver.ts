@@ -5,6 +5,67 @@ import Face from './Face'
 import Notation from './Notation'
 import type RubiksCube from './RubiksCube'
 
+export class BlindSolution {
+    edge: {
+        moves: FaceLetters[],
+        solution: Notation
+    }
+    corner: {
+        moves: FaceLetters[],
+        solution: Notation
+    }
+
+    moves: FaceLetters[]
+    solution: Notation
+    parity: boolean
+
+    constructor(edgeMoves: FaceLetters[], edgeSolution: Notation, cornerMoves: FaceLetters[], cornerSolution: Notation) {
+        this.edge = {
+                moves: edgeMoves,
+                solution: edgeSolution
+        }
+
+        this.corner = {
+            moves: cornerMoves,
+            solution: cornerSolution
+        }
+
+        this.parity = edgeMoves.length % 2 === 1 && cornerMoves.length % 2 === 1
+
+        if(this.parity) {
+            this.solution = Notation.combine(edgeSolution, BlindSolver.PARITY, cornerSolution)
+        } else {
+            this.solution = Notation.combine(edgeSolution, cornerSolution)
+        }
+        
+        this.moves = [...edgeMoves, ...cornerMoves]
+    }
+
+    toString() {
+        let edgeString = ''
+        let cornerString = ''
+        
+        for(let i = 0; i < this.edge.moves.length; i+=2) {
+            const x = this.edge.moves[i]
+            const y = this.edge.moves[i + 1] || ''
+            
+            edgeString += `${x}${y} `
+        }
+
+        for(let i = 0; i < this.corner.moves.length; i+=2) {
+            const x = this.corner.moves[i]
+            const y = this.corner.moves[i + 1] || ''
+            
+            cornerString += `${x}${y} `
+        }
+
+        return {
+            edge: edgeString.trim(),
+            corner: cornerString.trim()
+        }
+    }
+}
+
 /**
  * @link https://jperm.net/bld/
  */
@@ -198,6 +259,8 @@ export default class BlindSolver {
             const edge = this.rubiksCube.edges[i]
             
             if(!edge.isSolved()) {
+                console.log(edge)
+
                 return false
             }
         }
@@ -324,8 +387,6 @@ export default class BlindSolver {
 
             cubes = unsolved
 
-            // SWAP CASE NEEDS TO BE COVERED
-
             if(cubes.length === 0) {
                 const last = this.findSwap(swap, swapFace.currentLetter, [initialCube])
 
@@ -340,6 +401,8 @@ export default class BlindSolver {
             targetCube = swap
             targetLetter = swapFace.currentLetter
 
+
+            
             i++
         }
             // */
@@ -471,7 +534,7 @@ export default class BlindSolver {
         let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
         let unsolvedCorners: Cube[] = this.getUnsolvedCorners()
 
-        if(!this.isEdgeBufferSolved()) {
+        if(unsolvedEdges.length !== 0) {
             const edgeBufferSolve = this.solveBuffer(
                 'edge',
                 this.getEdgeBuffer(),
@@ -482,13 +545,13 @@ export default class BlindSolver {
             unsolvedEdges = edgeBufferSolve!.unsolvedCubes
         }
 
-        if(!this.isEdgesSolved()) {
+        if(unsolvedEdges.length !== 0) {
             const edgeNonBufferSolve = this.solveNonBuffer(unsolvedEdges)
             
             edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
         }
 
-        if(!this.isCornerBufferSolved()) {
+        if(unsolvedCorners.length !== 0) {
             const cornerBufferSolve = this.solveBuffer(
                 'corner',
                 this.getCornerBuffer(),
@@ -499,26 +562,15 @@ export default class BlindSolver {
             unsolvedCorners = cornerBufferSolve!.unsolvedCubes
         }
 
-        // if(!this.isCornersSolved()) {
-        //     const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
+        if(unsolvedCorners.length !== 0) {
+            const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
 
-        //     cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
-        // }
+            cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
+        }
         
         const edgeSolution = this.lettersToNotation('edge', edgeMoves)
         const cornerSolution = this.lettersToNotation('corner', cornerMoves)
-        
-        if(edgeMoves.length % 2 === 1 && cornerMoves.length % 2 === 1) {
-            console.log('Parity')
-        }
-        
-        // const solution = new Notation([...edgeSolution.moves, ...cornerSolution.moves])
-        const solution = null
 
-        return {
-            edgeMoves, cornerMoves,
-            edgeSolution, cornerSolution,
-            solution
-        }
+        return new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
     }
 }
