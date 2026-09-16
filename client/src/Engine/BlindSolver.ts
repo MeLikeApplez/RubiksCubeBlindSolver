@@ -345,7 +345,6 @@ export default class BlindSolver {
         let initialMove: FaceLetters = targetLetter
         let initialCube: Cube = targetCube
 
-        // /*
         let i = 0
         let LOOP_CHECK = 0
         while(cubes.length !== 0) {
@@ -405,77 +404,6 @@ export default class BlindSolver {
             
             i++
         }
-            // */
-
-        /*
-        let i = 0
-        while(cubes.length !== 0) {
-            const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
-
-            if(!swap) {
-                const last = this.findSwap(targetCube, targetLetter, [initialCube])
-            
-                targetCube = cubes[0]
-                targetLetter = Array.from(targetCube.currentLetters)[0]
-            
-                solvedMoves.push(last.swapFace!.currentLetter)
-                solvedCubes.push(last.swap!)
-
-                console.log(last.swapFace!.currentLetter)
-
-                // solvedMoves.push(initialMove)
-                // solvedCubes.push(initialCube)
-
-                console.warn('LOOP')
-                
-                i = 0
-
-                continue
-            }
-
-            targetCube = swap
-            targetLetter = swapFace.currentLetter
-            cubes = unsolved
-
-            if(i === 0) {
-                initialMove = targetLetter
-                initialCube = targetCube
-            }
-
-            console.log(swapFace.currentLetter)
-
-            solvedMoves.push(swapFace.currentLetter)
-            solvedCubes.push(swap)
-            
-            const isFlipped = swap.isFlipped()
-
-            if(isFlipped) {
-                const solvedFlipped = this.findSwap(targetCube, targetLetter, [targetCube])
-
-                console.warn('flipped')
-                console.log(solvedFlipped.swapFace!.currentLetter)
-
-                solvedMoves.push(solvedFlipped.swapFace!.currentLetter)
-                solvedCubes.push(solvedFlipped.swap!)
-            }
-
-            if(cubes.length === 0 && !isFlipped) {
-                console.log(initialMove)
-
-                solvedMoves.push(initialMove)
-                solvedCubes.push(initialCube)
-
-                break
-            }
-
-            i++
-        }
-        */
-
-        // console.log(solvedMoves)
-        // solvedMoves.length = 0
-
-        // solvedMoves.forEach(m =>console.log(m))
 
         return {
             solvedCubes, solvedMoves,
