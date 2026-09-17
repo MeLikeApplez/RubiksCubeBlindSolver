@@ -2,18 +2,24 @@ import * as THREE from 'three'
 import Cube from './Cube'
 import Face, { type FaceColors, type FaceLetters } from './Face'
 import Notation, { MoveInfo } from './Notation'
+import { deinterleaveAttribute } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 export type Axis3D = 'x' | 'y' | 'z'
-interface AnimationOptions {
-    delay?: number
+
+const Axis3DVectors = {
+    x: new THREE.Vector3(1, 0, 0),
+    y: new THREE.Vector3(0, 1, 0),
+    z: new THREE.Vector3(0, 0, 1),
 }
 
 interface AnimationDetails {
     axis: Axis3D
     layers: number[]
     rotations: number
-    rotation: THREE.Matrix4
+    rotationMatrix: THREE.Matrix4
+    angle: number
     cubes: Cube[]
+    steps: number
 }
 export default class RubiksCube {
     corners: Cube[]
@@ -22,7 +28,6 @@ export default class RubiksCube {
     cubes: Cube[]
     animationQueue: AnimationDetails[]
     animating: boolean
-    steps: number
     stepsCounted: number
 
     constructor() {
@@ -33,7 +38,6 @@ export default class RubiksCube {
 
         this.animationQueue = []
         this.animating = false
-        this.steps = 30
         this.stepsCounted = 0
 
         this.create()
@@ -145,6 +149,20 @@ export default class RubiksCube {
         return cubesFound
     }
 
+    getCubesByLayers(axis: Axis3D, layers: number[]) {
+        const cubes: Cube[] = []
+
+        for(let i = 0; i < layers.length; i++) {
+            const layer = layers[i]
+
+            cubes.push(
+                ...this.getCubesByAxis(axis, layer)
+            )
+        }
+
+        return cubes
+    }
+
     addToScene(scene: THREE.Scene) {
         for(let i = 0; i < this.cubes.length; i++) {
             scene.add(this.cubes[i].mesh)
@@ -163,14 +181,24 @@ export default class RubiksCube {
         return true
     }
 
-    turn(axis: Axis3D, layers: number[], rotations=1, animation?: AnimationOptions) {
-        let angle = 0
-        
-        if(animation) {
-            angle = (Math.PI / 2)  * (rotations / this.steps)
-        } else {
-            angle = (Math.PI / 2)  * rotations
+    calculateFrameTurn(animation: AnimationDetails, steps: number) {
+        const angle = (Math.PI / 2)  * (animation.rotations / steps)
+
+        switch(animation.axis) {
+            case 'x':
+                animation.rotationMatrix.makeRotationX(angle)
+                break
+            case 'y':
+                animation.rotationMatrix.makeRotationY(angle)
+                break
+            case 'z':
+                animation.rotationMatrix.makeRotationZ(angle)
+                break
         }
+    }
+
+    turn(axis: Axis3D, layers: number[], rotations=1, animate=false) {
+        const angle = (Math.PI / 2)  * rotations
         
         const rotationMatrix = new THREE.Matrix4()
 
@@ -178,7 +206,7 @@ export default class RubiksCube {
             case 'x':
                 rotationMatrix.makeRotationX(angle)
                 break
-                case 'y':
+            case 'y':
                 rotationMatrix.makeRotationY(angle)
                 break
             case 'z':
@@ -186,51 +214,40 @@ export default class RubiksCube {
                 break
         }
 
-        if(animation) {
+        if(animate) {
             this.animationQueue.push({
-                axis, layers, rotations,
-                rotation: rotationMatrix,
-                cubes: []
+                axis, layers, rotations, angle,
+                rotationMatrix: rotationMatrix,
+                cubes: [],
+                steps: 0
             })
             
             return
         }
 
-        const cubes: Cube[] = []
-
-        for(let i = 0; i < layers.length; i++) {
-            const layer = layers[i]
-
-            cubes.push(
-                ...this.getCubesByAxis(axis, layer)
-            )
-        }
-
-        if(cubes.length === 0) {
-            return
-        }
+        const cubes = this.getCubesByLayers(axis, layers)
 
         for(let i = 0; i < cubes.length; i++) {
             const cube = cubes[i]
-
+            
             cube.mesh.applyMatrix4(rotationMatrix)
             cube.mesh.position.round()
             cube.updateLetters(rotationMatrix)
         }
     }
 
-    turnWithNotation(notation: Notation, animation?: AnimationOptions) {
+    turnWithNotation(notation: Notation, animate=false) {
         for(let i = 0; i < notation.moves.length; i++) {
             const move = notation.moves[i]
             const instruction = Notation.MOVE_MAP.get(move) as MoveInfo
 
             if(instruction) {
-                    this.turn(
-                        instruction.axis,
-                        instruction.layer,
-                        instruction.rotations,
-                        animation
-                    )
+                this.turn(
+                    instruction.axis,
+                    instruction.layer,
+                    instruction.rotations,
+                    animate
+                )
             } else {
                 throw new Error(`Invalid move! "${move}"`)
             }
@@ -239,47 +256,32 @@ export default class RubiksCube {
         this.animating = true
     }
 
-    clearAnimation() {
-
-    }
-
-    playAnimation() {
-
-    }
-
     render(deltaTime: number) {
         if(!this.animating || this.animationQueue.length === 0) return
 
-        const { axis, layers, rotation, cubes } = this.animationQueue[0]
+        const animation = this.animationQueue[0]
 
-        if(cubes.length === 0) {
-            for(let i = 0; i < layers.length; i++) {
-                const layer = layers[i]
-
-                cubes.push(
-                    ...this.getCubesByAxis(axis, layer)
-                )
-            }
+        if(animation.cubes.length === 0) {
+            animation.cubes = this.getCubesByLayers(animation.axis, animation.layers)
         }
 
-        for(let i = 0; i < cubes.length; i++) {
-            const cube = cubes[i]
+        for(let i = 0; i < animation.cubes.length; i++) {
+            const cube = animation.cubes[i]
             
-            cube.mesh.applyMatrix4(rotation)
-            cube.updateLetters(rotation)
-        
-            if(this.stepsCounted >= this.steps - 1) {
-                cube.mesh.position.round()
+            cube.mesh.applyMatrix4(animation.rotationMatrix)
+            
+            if(this.stepsCounted >= animation.steps - 1) {
+                // cube.mesh.position.round()
+                cube.updateLetters(animation.rotationMatrix)
             }
         }
 
-        if(this.stepsCounted >= this.steps - 1) {
+        if(this.stepsCounted >= animation.steps - 1) {
             this.animationQueue.shift()
 
             this.stepsCounted = 0
         } else {
             this.stepsCounted++
         }
-
     }
 }

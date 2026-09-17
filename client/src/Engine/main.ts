@@ -4,6 +4,7 @@ import RubiksCube from './RubiksCube'
 import Face from './Face'
 import Notation from './Notation'
 import BlindSolver from './BlindSolver'
+import { deltaTime } from 'three/tsl'
 
 export default function main(canvas: HTMLCanvasElement) {
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 100)
@@ -40,12 +41,12 @@ export default function main(canvas: HTMLCanvasElement) {
     const test6 = new Notation(`B2 R2 B2 L U2 R' B2 R2 B2 R' U' B' F L' B D R B2 D B' D' U`)
     const test7 = new Notation(`U' L2 D' U R2 B' D' U' L2 B2 R' U' B' F' L U2 F R2 U'`)
     // Middle slicing fails during solve... Disable it
-    const test8 = new Notation(`U L`)
+    const test8 = new Notation(`U`)
 
     rubiksCube.addToScene(scene)
     
     // Edge Test
-    rubiksCube.turnWithNotation(test1, {})
+    // rubiksCube.turnWithNotation(test1, !true)
     // rubiksCube.turnWithNotation(test4)
 
     // Edge & Corner Test
@@ -54,7 +55,7 @@ export default function main(canvas: HTMLCanvasElement) {
     // rubiksCube.turnWithNotation(test5)
     // rubiksCube.turnWithNotation(test6)
     // rubiksCube.turnWithNotation(test7)
-    // rubiksCube.turnWithNotation(test8, { delay: 100 })
+    rubiksCube.turnWithNotation(test8, true)
 
     console.log(rubiksCube)
     // const blindSolution = solver.solve()
@@ -62,15 +63,14 @@ export default function main(canvas: HTMLCanvasElement) {
     // console.log(blindSolution)
 
     // rubiksCube.turnWithNotation(blindSolution.solution)
-
     const timer = new THREE.Timer()
 
-    function animate() {
-        rubiksCube.render(timer.getDelta())
-        controls.update()
-        renderer.render(scene, camera)
-        
+    function animate(time: number) {
         timer.update()
+
+        rubiksCube.render(timer.getDelta() * 1)
+        controls.update()
+        renderer.render(scene, camera)     
     }
 
     function resize() {
