@@ -16,10 +16,12 @@ interface AnimationDetails {
     axis: Axis3D
     layers: number[]
     rotations: number
-    rotationMatrix: THREE.Matrix4
+    rotationQuaternion: THREE.Quaternion
+    targetRotation: THREE.Quaternion[]
+    targetPosition: THREE.Vector3[]
     angle: number
     cubes: Cube[]
-    steps: number
+    timeElapsed: number
 }
 export default class RubiksCube {
     corners: Cube[]
@@ -28,7 +30,6 @@ export default class RubiksCube {
     cubes: Cube[]
     animationQueue: AnimationDetails[]
     animating: boolean
-    stepsCounted: number
 
     constructor() {
         this.corners = []
@@ -38,7 +39,6 @@ export default class RubiksCube {
 
         this.animationQueue = []
         this.animating = false
-        this.stepsCounted = 0
 
         this.create()
     }
@@ -181,22 +181,6 @@ export default class RubiksCube {
         return true
     }
 
-    calculateFrameTurn(animation: AnimationDetails, steps: number) {
-        const angle = (Math.PI / 2)  * (animation.rotations / steps)
-
-        switch(animation.axis) {
-            case 'x':
-                animation.rotationMatrix.makeRotationX(angle)
-                break
-            case 'y':
-                animation.rotationMatrix.makeRotationY(angle)
-                break
-            case 'z':
-                animation.rotationMatrix.makeRotationZ(angle)
-                break
-        }
-    }
-
     turn(axis: Axis3D, layers: number[], rotations=1, animate=false) {
         const angle = (Math.PI / 2)  * rotations
         
@@ -215,11 +199,17 @@ export default class RubiksCube {
         }
 
         if(animate) {
+            const rotationQuaternion = new THREE.Quaternion()
+
+            rotationQuaternion.setFromRotationMatrix(rotationMatrix)
+
             this.animationQueue.push({
                 axis, layers, rotations, angle,
-                rotationMatrix: rotationMatrix,
+                rotationQuaternion,
+                targetRotation: [],
+                targetPosition: [],
                 cubes: [],
-                steps: 0
+                timeElapsed: 0
             })
             
             return
@@ -229,7 +219,7 @@ export default class RubiksCube {
 
         for(let i = 0; i < cubes.length; i++) {
             const cube = cubes[i]
-            
+
             cube.mesh.applyMatrix4(rotationMatrix)
             cube.mesh.position.round()
             cube.updateLetters(rotationMatrix)
@@ -261,27 +251,48 @@ export default class RubiksCube {
 
         const animation = this.animationQueue[0]
 
+        // setup linear interpolation
         if(animation.cubes.length === 0) {
             animation.cubes = this.getCubesByLayers(animation.axis, animation.layers)
-        }
+        
+            for(let i = 0; i < animation.cubes.length; i++) {
+                const cube = animation.cubes[i]
+                const targetRotation = new THREE.Quaternion()
+                const targetPosition = new THREE.Vector3()
+                
+                animation.targetRotation.push(targetRotation)
+                animation.targetPosition.push(targetPosition)
+            
+                targetRotation.copy(cube.mesh.quaternion)
+                targetPosition.copy(cube.mesh.position)
 
-        for(let i = 0; i < animation.cubes.length; i++) {
-            const cube = animation.cubes[i]
-            
-            cube.mesh.applyMatrix4(animation.rotationMatrix)
-            
-            if(this.stepsCounted >= animation.steps - 1) {
-                // cube.mesh.position.round()
-                cube.updateLetters(animation.rotationMatrix)
+                targetRotation.slerp(animation.rotationQuaternion, 1)
+                targetPosition.applyQuaternion(animation.rotationQuaternion)
             }
         }
 
-        if(this.stepsCounted >= animation.steps - 1) {
-            this.animationQueue.shift()
+        // animation frame
+        for(let i = 0; i < animation.cubes.length; i++) {
+            const cube = animation.cubes[i]
+            const targetRotation = animation.targetRotation[i]
+            const targetPosition = animation.targetPosition[i]
+            
+            // cube.mesh.quaternion.slerp(targetRotation, 1)
+            // cube.mesh.position.lerp(targetPosition, 1)
+            
+            // cube.mesh.applyQuaternion(animation.rotationQuaternion)
 
-            this.stepsCounted = 0
-        } else {
-            this.stepsCounted++
+            cube.mesh.quaternion.slerp(targetRotation, 0.5)
+            cube.mesh.position.lerp(targetPosition, 0.5)
+            // cube.mesh.position.applyQuaternion(animation.rotationQuaternion)
+            
+            // if(this.stepsCounted >= animation.steps - 1) {
+                cube.mesh.position.round()
+                cube.updateLetters(animation.rotationQuaternion)
+            // }
         }
+
+        this.animationQueue.shift()
+
     }
 }

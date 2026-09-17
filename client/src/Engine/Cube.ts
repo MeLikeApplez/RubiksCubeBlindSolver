@@ -160,7 +160,7 @@ export default class Cube {
         }
     }
 
-    updateLetters(rotationMatrix: THREE.Matrix4) {
+    updateLetters(rotation: THREE.Matrix4 | THREE.Quaternion) {
         this.currentLetters.clear()
         
         for(let i = 0; i < this.faces.length; i++) {
@@ -170,7 +170,12 @@ export default class Cube {
                 continue
             }
 
-            face.direction.applyMatrix4(rotationMatrix)
+            if(rotation instanceof THREE.Matrix4) {
+                face.direction.applyMatrix4(rotation)
+            } else {
+                face.direction.applyQuaternion(rotation)
+            }
+
             face.direction.round()
 
             face.updateLetter(this.position)
