@@ -41,7 +41,7 @@ export default function main(canvas: HTMLCanvasElement) {
     const test6 = new Notation(`B2 R2 B2 L U2 R' B2 R2 B2 R' U' B' F L' B D R B2 D B' D' U`)
     const test7 = new Notation(`U' L2 D' U R2 B' D' U' L2 B2 R' U' B' F' L U2 F R2 U'`)
     // Middle slicing fails during solve... Disable it
-    const test8 = new Notation(`U M U M`)
+    const test8 = new Notation(`f2 u`)
 
     rubiksCube.addToScene(scene)
     
@@ -57,14 +57,14 @@ export default function main(canvas: HTMLCanvasElement) {
     // rubiksCube.turnWithNotation(test7)
     // rubiksCube.turnWithNotation(test8)
 
-    console.log(rubiksCube)
+    // rubiksCube.scramble(50)
+
     const blindSolution = solver.solve()
     
-    // console.log(blindSolution)
-
-    rubiksCube.animationSpeed = 10
-
     rubiksCube.turnWithNotation(blindSolution.solution, true)
+    
+    console.log(rubiksCube)
+    console.log(solver)
 
     const timer = new THREE.Timer()
 

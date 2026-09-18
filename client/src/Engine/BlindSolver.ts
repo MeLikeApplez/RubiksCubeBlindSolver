@@ -1,9 +1,11 @@
 import * as THREE from 'three'
 import type Cube from './Cube'
-import type { FaceLetters } from './Face'
+import type { FaceColors, FaceLetters } from './Face'
 import Face from './Face'
 import Notation from './Notation'
 import type RubiksCube from './RubiksCube'
+import type { CubePlacement } from './Cube'
+import type { Axis3D } from './RubiksCube'
 
 export class BlindSolution {
     edge: {
@@ -71,7 +73,7 @@ export class BlindSolution {
  */
 export default class BlindSolver {
     rubiksCube: RubiksCube
-    solution: Notation
+    solution: BlindSolution | null
 
     static EDGE_SWAP = new Notation(`R U R' U' R' F R2 U' R' U' R U R' F'`)
     static CORNER_SWAP = new Notation(`R U' R' U' R U R' F' R U R' U' R' F R`)
@@ -134,9 +136,15 @@ export default class BlindSolver {
         ['X', new Notation(`D2`)]
     ])
 
+    static ALIGNMENT_TOP_VECTOR = new THREE.Vector3(0, 1, 0)
+    static ALIGNMENT_FRONT_VECTOR = new THREE.Vector3(0, 0, 1)
+
+    static ALIGNMENT_TOP_COLOR: FaceColors = 'white'
+    static ALIGNMENT_FRONT_COLOR: FaceColors = 'green'
+
     constructor(rubiksCube: RubiksCube) {
         this.rubiksCube = rubiksCube
-        this.solution = new Notation()
+        this.solution = null
     }
 
     lettersToNotation(type: 'edge' | 'corner', letters: FaceLetters[]) {
@@ -342,7 +350,6 @@ export default class BlindSolver {
 
         let targetCube: Cube = cubes[0]
         let targetLetter: FaceLetters = Array.from(targetCube.currentLetters)[0]
-        let initialMove: FaceLetters = targetLetter
         let initialCube: Cube = targetCube
 
         let i = 0
@@ -375,7 +382,6 @@ export default class BlindSolver {
             }
 
             if(i === 0) {
-                initialMove = swapFace.currentLetter
                 initialCube = swap
             }
 
@@ -412,8 +418,6 @@ export default class BlindSolver {
     }
 
     findSwap(targetCube: Cube, targetLetter: FaceLetters, cubes: Cube[]) {
-        // const targetDirection = Face.getDirectionByLetter(targetLetter)
-
         const swapIndex = cubes.findIndex(cube => !targetCube.solvedLetters.isDisjointFrom(cube.currentLetters))
 
         if(swapIndex === -1) {
@@ -443,6 +447,31 @@ export default class BlindSolver {
         }
     }
 
+    setAlignment() {
+        const cubes = this.rubiksCube.getCubesByPlacement('center')
+
+        for(let i = 0; i < cubes.length; i++) {
+            const cube = cubes[i]
+            const color: FaceColors = Array.from(cube.colors)[0]
+
+            if(color !== BlindSolver.ALIGNMENT_TOP_COLOR && color !== BlindSolver.ALIGNMENT_FRONT_COLOR) {
+                    continue
+            }
+
+            const targetDirection = color === BlindSolver.ALIGNMENT_TOP_COLOR ? BlindSolver.ALIGNMENT_TOP_VECTOR : BlindSolver.ALIGNMENT_FRONT_VECTOR
+            let rotationQuaternion = new THREE.Quaternion().setFromUnitVectors(targetDirection, cube.mesh.position)
+
+            this.rubiksCube.update(rotationQuaternion)
+            
+            // redo it again because sometimes it flips in the wrong direction idk its really annoying
+            if(!cube.position.equals(targetDirection)) {
+                rotationQuaternion = new THREE.Quaternion().setFromUnitVectors(targetDirection, cube.mesh.position)
+
+                this.rubiksCube.update(rotationQuaternion)
+            }
+        }
+    }
+
     /**
      * @description
      * Unsolved Cases:
@@ -457,6 +486,10 @@ export default class BlindSolver {
      * 5. Repeat for corner solve
      */
     solve() {
+        // Align it to white top and green front
+        // If's not aligned, the solve breaks
+        this.setAlignment()
+
         const edgeMoves: FaceLetters[] = []
         const cornerMoves: FaceLetters[] = []
         let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
@@ -499,6 +532,8 @@ export default class BlindSolver {
         const edgeSolution = this.lettersToNotation('edge', edgeMoves)
         const cornerSolution = this.lettersToNotation('corner', cornerMoves)
 
-        return new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+        this.solution = new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+
+        return this.solution
     }
 }

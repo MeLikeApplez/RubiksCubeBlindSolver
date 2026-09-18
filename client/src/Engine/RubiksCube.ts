@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import Cube from './Cube'
+import Cube, { type CubePlacement } from './Cube'
 import Face, { type FaceColors, type FaceLetters } from './Face'
 import Notation, { MoveInfo } from './Notation'
 
@@ -41,7 +41,7 @@ export default class RubiksCube {
         this.animating = false
         this._timeElapsed = 0
 
-        this.animationSpeed = 1
+        this.animationSpeed = 5
 
         this.create()
     }
@@ -166,6 +166,25 @@ export default class RubiksCube {
         return cubes
     }
 
+    getCubesByPlacement(...placement: CubePlacement[]) {
+        const placementSet = new Set(placement)
+        const cubes: Cube[] = []
+        
+        if(placementSet.has('center')) {
+            cubes.push(...this.centers)
+        }
+
+        if(placementSet.has('corner')) {
+            cubes.push(...this.corners)
+        }
+
+        if(placementSet.has('edge')) {
+            cubes.push(...this.edges)    
+        }
+
+        return cubes
+    }
+
     addToScene(scene: THREE.Scene) {
         for(let i = 0; i < this.cubes.length; i++) {
             scene.add(this.cubes[i].mesh)
@@ -215,13 +234,7 @@ export default class RubiksCube {
 
         const cubes = this.getCubesByLayers(axis, layers)
 
-        for(let i = 0; i < cubes.length; i++) {
-            const cube = cubes[i]
-
-            cube.mesh.applyMatrix4(rotationMatrix)
-            cube.mesh.position.round()
-            cube.updateLetters(rotationMatrix)
-        }
+        this.update(rotationMatrix, cubes)
     }
 
     turnWithNotation(notation: Notation, animate=false) {
@@ -241,7 +254,50 @@ export default class RubiksCube {
             }
         }
 
-        this.animating = true
+        if(animate) {
+            this.animating = true
+        }
+    }
+
+    generateScramble(length=20) {
+        const moves: string[] = []
+        const moveList = Array.from(Notation.MOVE_MAP.keys())
+
+        for(let i = 0; i < length; i++) {
+            const index = THREE.MathUtils.randInt(0, Notation.MOVE_MAP.size - 1)
+
+            moves.push(moveList[index])
+        }
+
+        const notation = new Notation(moves)
+
+        return notation
+    }
+
+    scramble(length=20, animate=false) {
+        const scramble = this.generateScramble(length)
+
+        this.turnWithNotation(scramble, animate)
+
+        return scramble
+    }
+
+    update(rotation: THREE.Matrix4 | THREE.Quaternion, cubes?: Cube[]) {
+        cubes = cubes ?? this.cubes
+
+        for(let i = 0; i < cubes.length; i++) {
+            const cube = cubes[i]
+
+            if(rotation instanceof THREE.Matrix4) {
+                cube.mesh.applyMatrix4(rotation)
+            } else {
+                cube.mesh.applyQuaternion(rotation)
+                cube.mesh.position.applyQuaternion(rotation)
+            }
+
+            cube.mesh.position.round()
+            cube.updateLetters(rotation)
+        }
     }
 
     render(deltaTime: number) {
@@ -252,7 +308,7 @@ export default class RubiksCube {
         }
 
         deltaTime *= this.animationSpeed
-        
+
         const animation = this.animationQueue[0]
 
         // setup linear interpolation
