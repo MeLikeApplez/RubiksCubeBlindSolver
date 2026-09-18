@@ -2,7 +2,6 @@ import * as THREE from 'three'
 import Cube from './Cube'
 import Face, { type FaceColors, type FaceLetters } from './Face'
 import Notation, { MoveInfo } from './Notation'
-import { deinterleaveAttribute } from 'three/examples/jsm/utils/BufferGeometryUtils.js'
 
 export type Axis3D = 'x' | 'y' | 'z'
 
@@ -16,12 +15,11 @@ interface AnimationDetails {
     axis: Axis3D
     layers: number[]
     rotations: number
-    rotationQuaternion: THREE.Quaternion
-    targetRotation: THREE.Quaternion[]
+    rotationMatrix: THREE.Matrix4
+    targetRotation: THREE.Euler[]
     targetPosition: THREE.Vector3[]
     angle: number
     cubes: Cube[]
-    timeElapsed: number
 }
 export default class RubiksCube {
     corners: Cube[]
@@ -30,6 +28,8 @@ export default class RubiksCube {
     cubes: Cube[]
     animationQueue: AnimationDetails[]
     animating: boolean
+    private _timeElapsed: number
+    animationSpeed: number
 
     constructor() {
         this.corners = []
@@ -39,6 +39,9 @@ export default class RubiksCube {
 
         this.animationQueue = []
         this.animating = false
+        this._timeElapsed = 0
+
+        this.animationSpeed = 1
 
         this.create()
     }
@@ -199,17 +202,12 @@ export default class RubiksCube {
         }
 
         if(animate) {
-            const rotationQuaternion = new THREE.Quaternion()
-
-            rotationQuaternion.setFromRotationMatrix(rotationMatrix)
-
             this.animationQueue.push({
                 axis, layers, rotations, angle,
-                rotationQuaternion,
+                rotationMatrix,
                 targetRotation: [],
                 targetPosition: [],
                 cubes: [],
-                timeElapsed: 0
             })
             
             return
@@ -247,8 +245,14 @@ export default class RubiksCube {
     }
 
     render(deltaTime: number) {
-        if(!this.animating || this.animationQueue.length === 0) return
+        if(!this.animating || this.animationQueue.length === 0) {
+            this.animating = false
 
+            return
+        }
+
+        deltaTime *= this.animationSpeed
+        
         const animation = this.animationQueue[0]
 
         // setup linear interpolation
@@ -257,42 +261,42 @@ export default class RubiksCube {
         
             for(let i = 0; i < animation.cubes.length; i++) {
                 const cube = animation.cubes[i]
-                const targetRotation = new THREE.Quaternion()
-                const targetPosition = new THREE.Vector3()
+                const cubeClone = cube.mesh.clone()
+                
+                cubeClone.applyMatrix4(animation.rotationMatrix)
+
+                const targetRotation = cubeClone.rotation.clone()
+                const targetPosition = cubeClone.position.clone()
                 
                 animation.targetRotation.push(targetRotation)
                 animation.targetPosition.push(targetPosition)
-            
-                targetRotation.copy(cube.mesh.quaternion)
-                targetPosition.copy(cube.mesh.position)
-
-                targetRotation.slerp(animation.rotationQuaternion, 1)
-                targetPosition.applyQuaternion(animation.rotationQuaternion)
             }
         }
 
         // animation frame
         for(let i = 0; i < animation.cubes.length; i++) {
             const cube = animation.cubes[i]
-            const targetRotation = animation.targetRotation[i]
-            const targetPosition = animation.targetPosition[i]
-            
-            // cube.mesh.quaternion.slerp(targetRotation, 1)
-            // cube.mesh.position.lerp(targetPosition, 1)
-            
-            // cube.mesh.applyQuaternion(animation.rotationQuaternion)
+            const interpolationMatrix = new THREE.Matrix4().makeRotationAxis(Axis3DVectors[animation.axis], animation.angle * deltaTime)
 
-            cube.mesh.quaternion.slerp(targetRotation, 0.5)
-            cube.mesh.position.lerp(targetPosition, 0.5)
-            // cube.mesh.position.applyQuaternion(animation.rotationQuaternion)
-            
-            // if(this.stepsCounted >= animation.steps - 1) {
+            cube.mesh.applyMatrix4(interpolationMatrix)
+
+            if(this._timeElapsed >= 1) {
+                cube.mesh.position.copy(animation.targetPosition[i])
+                cube.mesh.rotation.copy(animation.targetRotation[i])
+
                 cube.mesh.position.round()
-                cube.updateLetters(animation.rotationQuaternion)
-            // }
+                cube.updateLetters(animation.rotationMatrix)
+            }
         }
 
-        this.animationQueue.shift()
+        if(this._timeElapsed >= 1) {
+            this.animationQueue.shift()
+
+            this._timeElapsed = 0
+        } else {
+            this._timeElapsed = THREE.MathUtils.clamp(this._timeElapsed + deltaTime, 0, 1)
+        }
+
 
     }
 }
