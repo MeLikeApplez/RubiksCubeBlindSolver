@@ -4,59 +4,59 @@ import type { FaceColors, FaceLetters } from './Face'
 import Face from './Face'
 import Notation from './Notation'
 import type RubiksCube from './RubiksCube'
-import type { CubePlacement } from './Cube'
-import type { Axis3D } from './RubiksCube'
+
+const _PARITY = new Notation(`R U' R' U' R U R D R' U' R D' R' U2 R' U'`)
 
 export class BlindSolution {
     edge: {
-        moves: FaceLetters[],
-        solution: Notation
+        letters: FaceLetters[],
+        moves: Notation
     }
     corner: {
-        moves: FaceLetters[],
-        solution: Notation
+        letters: FaceLetters[],
+        moves: Notation
     }
 
-    moves: FaceLetters[]
-    solution: Notation
-    parity: boolean
+    letters: FaceLetters[]
+    moves: Notation
+    parity: Notation
 
     constructor(edgeMoves: FaceLetters[], edgeSolution: Notation, cornerMoves: FaceLetters[], cornerSolution: Notation) {
         this.edge = {
-                moves: edgeMoves,
-                solution: edgeSolution
+                letters: edgeMoves,
+                moves: edgeSolution
         }
 
         this.corner = {
-            moves: cornerMoves,
-            solution: cornerSolution
+            letters: cornerMoves,
+            moves: cornerSolution
         }
 
-        this.parity = edgeMoves.length % 2 === 1 && cornerMoves.length % 2 === 1
+        this.parity = (edgeMoves.length % 2 === 1 && cornerMoves.length % 2 === 1) ? _PARITY : new Notation('')
 
         if(this.parity) {
-            this.solution = Notation.combine(edgeSolution, BlindSolver.PARITY, cornerSolution)
+            this.moves = Notation.combine(edgeSolution, BlindSolver.PARITY, cornerSolution)
         } else {
-            this.solution = Notation.combine(edgeSolution, cornerSolution)
+            this.moves = Notation.combine(edgeSolution, cornerSolution)
         }
         
-        this.moves = [...edgeMoves, ...cornerMoves]
+        this.letters = [...edgeMoves, ...cornerMoves]
     }
 
     toString() {
         let edgeString = ''
         let cornerString = ''
         
-        for(let i = 0; i < this.edge.moves.length; i+=2) {
-            const x = this.edge.moves[i]
-            const y = this.edge.moves[i + 1] || ''
+        for(let i = 0; i < this.edge.letters.length; i+=2) {
+            const x = this.edge.letters[i]
+            const y = this.edge.letters[i + 1] || ''
             
             edgeString += `${x}${y} `
         }
 
-        for(let i = 0; i < this.corner.moves.length; i+=2) {
-            const x = this.corner.moves[i]
-            const y = this.corner.moves[i + 1] || ''
+        for(let i = 0; i < this.corner.letters.length; i+=2) {
+            const x = this.corner.letters[i]
+            const y = this.corner.letters[i + 1] || ''
             
             cornerString += `${x}${y} `
         }
@@ -68,16 +68,38 @@ export class BlindSolution {
     }
 }
 
+export interface CycleSolution {
+    solvedCubes: Cube[]
+    solvedMoves: FaceLetters[]
+    unsolvedCubes: Cube[]
+    parent: CycleSolution | null
+    level: number
+}
+
+export class TreeSolution extends Array<CycleSolution> {
+    depth: number
+    totalBranches: number
+
+    constructor(cycleSolutions: CycleSolution[], depth: number, totalBranches: number) {
+        super()
+
+        this.depth = depth
+        this.totalBranches = totalBranches
+
+        this.push(...cycleSolutions)
+    }
+}
+
 /**
  * @link https://jperm.net/bld/
  */
 export default class BlindSolver {
     rubiksCube: RubiksCube
-    solution: BlindSolution | null
+    solutions: BlindSolution[]
 
     static EDGE_SWAP = new Notation(`R U R' U' R' F R2 U' R' U' R U R' F'`)
     static CORNER_SWAP = new Notation(`R U' R' U' R U R' F' R U R' U' R' F R`)
-    static PARITY = new Notation(`R U' R' U' R U R D R' U' R D' R' U2 R' U'`)
+    static PARITY = _PARITY
 
     static EDGE_BUFFER = new Set(['B', 'M'])
     static EDGE_BUFFER_TARGET_SPACE: FaceLetters = "B"
@@ -144,7 +166,7 @@ export default class BlindSolver {
 
     constructor(rubiksCube: RubiksCube) {
         this.rubiksCube = rubiksCube
-        this.solution = null
+        this.solutions = []
     }
 
     lettersToNotation(type: 'edge' | 'corner', letters: FaceLetters[]) {
@@ -288,6 +310,61 @@ export default class BlindSolver {
         return true
     }
 
+    findCycle(targetCube: Cube, targetLetter: FaceLetters, cubes: Cube[]): CycleSolution {
+        const solvedCubes: Cube[] = []
+        const solvedMoves: FaceLetters[] = []
+
+        // cubes = Array.from(cubes)
+        
+        let initialCube: Cube = targetCube
+        
+        let i = 0
+        while(cubes.length !== 0) {
+            const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
+
+            if(!swap) {
+                const last = this.findSwap(targetCube, targetLetter, [initialCube])
+
+                solvedMoves.push(last.swapFace!.currentLetter)
+                solvedCubes.push(last.swap!)
+
+                break
+            }
+
+            if(i === 0) {
+                initialCube = swap
+            }
+
+            solvedMoves.push(swapFace.currentLetter)
+            solvedCubes.push(swap)
+
+            cubes = unsolved
+
+            if(cubes.length === 0) {
+                const last = this.findSwap(swap, swapFace.currentLetter, [initialCube])
+
+                solvedMoves.push(last.swapFace!.currentLetter)
+                solvedCubes.push(last.swap!)
+
+                break
+            }
+
+            targetCube = swap
+            targetLetter = swapFace.currentLetter
+
+            i++
+        }
+
+
+        return {
+            solvedCubes: Array.from(solvedCubes),
+            solvedMoves: Array.from(solvedMoves),
+            unsolvedCubes: Array.from(cubes),
+            parent: null,
+            level: 0
+        }
+    }
+
     /**
      * @description
      *  1. Unsolved buffer => Start at the BUFFER SPOT and end with the BUFFER PIECE
@@ -297,16 +374,11 @@ export default class BlindSolver {
         const solvedMoves: FaceLetters[] = []
 
         let targetCube: Cube = buffer
-        // let targetLetter: FaceLetters = BlindSolver.EDGE_BUFFER_TARGET_SPACE
         let targetLetter: FaceLetters = type === 'edge' ? BlindSolver.EDGE_BUFFER_TARGET_SPACE : BlindSolver.CORNER_BUFFER_TARGET_SPACE
-
-        // console.log(targetCube)
 
         const cubesLength = cubes.length
         for(let i = 0; i < cubesLength; i++) {
             const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
-
-            // console.log(cubes.length, i)
 
             if(!swap) {
                 break
@@ -319,7 +391,6 @@ export default class BlindSolver {
                 solvedMoves.push(targetLetter)
             }
 
-
             targetCube = swap
             targetLetter = swapFace.currentLetter
             cubes = unsolved
@@ -331,9 +402,6 @@ export default class BlindSolver {
             solvedCubes, solvedMoves,
             unsolvedCubes: cubes
         }
-
-        
-        // console.log(this.findSwap(buffer, targetColor, cubes))
     }
 
     /**
@@ -347,20 +415,16 @@ export default class BlindSolver {
         const solvedMoves: FaceLetters[] = []
         
         cubes = cubes.filter(cube => !this.isCubeBuffer(cube))
-
+        
+        // Possible first solution choice
         let targetCube: Cube = cubes[0]
         let targetLetter: FaceLetters = Array.from(targetCube.currentLetters)[0]
         let initialCube: Cube = targetCube
 
+        // console.warn(cubes.map(c => c.currentLetters))
+
         let i = 0
-        let LOOP_CHECK = 0
         while(cubes.length !== 0) {
-            if(LOOP_CHECK++ >= 100) {
-                console.error('Infinite Loop!')
-
-                break
-            }
-
             const { swap, swapFace, unsolved } = this.findSwap(targetCube, targetLetter, cubes)
 
             if(!swap) {
@@ -372,6 +436,8 @@ export default class BlindSolver {
                 solvedMoves.push(last.swapFace!.currentLetter)
                 solvedCubes.push(last.swap!)
 
+                // Possible first solution choice
+                // console.warn(cubes.map(c => c.currentLetters))
                 targetCube = cubes[0]
                 targetLetter = Array.from(targetCube.currentLetters)[0]
 
@@ -386,7 +452,7 @@ export default class BlindSolver {
             }
 
             // console.log(swapFace.currentLetter)
-            
+
             solvedMoves.push(swapFace.currentLetter)
             solvedCubes.push(swap)
 
@@ -405,16 +471,66 @@ export default class BlindSolver {
 
             targetCube = swap
             targetLetter = swapFace.currentLetter
-
-
             
             i++
         }
+
+        // console.warn(solvedMoves.join(' '))
 
         return {
             solvedCubes, solvedMoves,
             unsolvedCubes: cubes
         }
+    }
+
+    solveAllNonBufferSolutions(cubes: Cube[], _previousBranch?: CycleSolution, _ref?: { depth: number, totalBranches: number }) {
+        cubes = cubes.filter(cube => !this.isCubeBuffer(cube))
+        
+        const tree: CycleSolution[] = []
+        const previousLevel = _previousBranch?.level || 0
+
+        if(!_ref) {
+            _ref = { depth: 0, totalBranches: 0 }
+        }
+
+        for(let i = 0; i < cubes.length; i++) {
+            const cube = cubes[i]
+            const letters = Array.from(cube.currentLetters)
+
+            for(let j = 0; j < letters.length; j++) {
+                const letter = letters[j]
+                const cycle = this.findCycle(cube, letter, cubes)
+                
+                // console.log(cycle.solvedMoves.join(' '), cycle.unsolvedCubes.length)
+                
+                cycle.parent = _previousBranch || null
+                _ref.totalBranches++
+
+                tree.push(cycle)
+            }
+        }
+
+        for(let i = 0; i < tree.length; i++) {
+            const branch = tree[i]
+
+            // console.log(branch.unsolvedCubes.length)
+
+            branch.level += previousLevel + 1
+
+            _ref.depth = Math.max(_ref.depth, branch.level)
+
+            this.solveAllNonBufferSolutions(branch.unsolvedCubes, branch, _ref)
+        }
+
+        if(tree.length !== 0) {
+            // console.log(previousLevel, tree.map(b => b.solvedMoves.join('')))
+            // console.log(previousLevel, tree.map(b => b.parent))
+            // console.count('Next')
+
+            return new TreeSolution(tree, _ref.depth, _ref.totalBranches)
+        }
+
+        // console.log(tree)
     }
 
     findSwap(targetCube: Cube, targetLetter: FaceLetters, cubes: Cube[]) {
@@ -485,11 +601,7 @@ export default class BlindSolver {
      * 4. Solve for parity if BOTH edges and corners are BOTH ODD number of solves
      * 5. Repeat for corner solve
      */
-    solve() {
-        // Align it to white top and green front
-        // If's not aligned, the solve breaks
-        this.setAlignment()
-
+    findSolution() {
         const edgeMoves: FaceLetters[] = []
         const cornerMoves: FaceLetters[] = []
         let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
@@ -508,7 +620,7 @@ export default class BlindSolver {
 
         if(unsolvedEdges.length !== 0) {
             const edgeNonBufferSolve = this.solveNonBuffer(unsolvedEdges)
-            
+
             edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
         }
 
@@ -532,8 +644,73 @@ export default class BlindSolver {
         const edgeSolution = this.lettersToNotation('edge', edgeMoves)
         const cornerSolution = this.lettersToNotation('corner', cornerMoves)
 
-        this.solution = new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+        return new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+    }
 
-        return this.solution
+    findAllSolutions() {
+        const edgeMoves: FaceLetters[] = []
+        const cornerMoves: FaceLetters[] = []
+        let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
+        let unsolvedCorners: Cube[] = this.getUnsolvedCorners()
+
+        if(unsolvedEdges.length !== 0) {
+            const edgeBufferSolve = this.solveBuffer(
+                'edge',
+                this.getEdgeBuffer(),
+                unsolvedEdges
+            )
+
+            edgeMoves.push(...edgeBufferSolve!.solvedMoves)
+            unsolvedEdges = edgeBufferSolve!.unsolvedCubes
+        }
+
+        if(unsolvedEdges.length !== 0) {
+            console.log(
+                this.solveAllNonBufferSolutions(unsolvedEdges)
+            )
+
+            // const edgeNonBufferSolve = this.solveNonBuffer(unsolvedEdges)
+
+            // edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
+        }
+
+        if(unsolvedCorners.length !== 0) {
+            const cornerBufferSolve = this.solveBuffer(
+                'corner',
+                this.getCornerBuffer(),
+                unsolvedCorners
+            )
+
+            cornerMoves.push(...cornerBufferSolve!.solvedMoves)
+            unsolvedCorners = cornerBufferSolve!.unsolvedCubes
+        }
+
+        if(unsolvedCorners.length !== 0) {
+            console.log(
+                this.solveAllNonBufferSolutions(unsolvedEdges)
+            )
+
+            // const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
+
+            // cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
+        }
+        
+        // const edgeSolution = this.lettersToNotation('edge', edgeMoves)
+        // const cornerSolution = this.lettersToNotation('corner', cornerMoves)
+
+        // return new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+    }
+
+    solve() {
+        // Align it to white top and green front
+        // If's not aligned, the solve breaks
+        this.setAlignment()
+
+        this.solutions = []
+        this.solutions.push(this.findSolution())
+
+        // this.solutions.forEach(s => console.warn(s.letters.join(' ')))
+
+        return this.solutions
     }
 }
