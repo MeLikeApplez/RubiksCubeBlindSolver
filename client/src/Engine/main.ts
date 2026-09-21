@@ -47,8 +47,8 @@ export function test(canvas: HTMLCanvasElement) {
     
     // Edge Test
     // rubiksCube.turnWithNotation(test1)
-    // rubiksCube.turnWithNotation(test4)
-    rubiksCube.turnWithNotation(test9)
+    rubiksCube.turnWithNotation(test4)
+    // rubiksCube.turnWithNotation(test9)
 
     // Edge & Corner Test
     // rubiksCube.turnWithNotation(test2)
@@ -60,11 +60,19 @@ export function test(canvas: HTMLCanvasElement) {
 
     // rubiksCube.scramble(10)
 
+    const generalSolution = solver.findGeneralSolution()
+    const particularSolution = solver.findParticularSolution()
+
     console.log(
-        solver.findParticularSolution(),
-        solver.findGeneralSolution()
+        // particularSolution,
+        generalSolution
     )
-        // console.log(solver.findParticularSolution())
+
+    console.log(
+        generalSolution.isValidSolution('edge', ['A',])
+    )
+
+    // console.log(solver.findParticularSolution())
 
     // solver.solve()
     // console.log(solver.solutions[0].toString())

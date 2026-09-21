@@ -112,11 +112,6 @@ export class GeneralBlindSolution {
     constructor(options: GeneralBlindSolutionOptions) {
         this.edge = options.edge
         this.corner = options.corner
-    
-        console.log(
-            this.getRandomSolution()
-        )
-
     }
 
     pathSearch(type: 'edge' | 'corner', path: number[]) {
@@ -136,6 +131,32 @@ export class GeneralBlindSolution {
         }
 
         return cycles
+    }
+
+    isValidSolution(type: 'edge' | 'corner', letters: FaceLetters[]) {
+        const tree = type === 'edge' ? this.edge.tree : this.corner.tree
+        const buffer = type === 'edge' ? this.edge.buffer.letters : this.corner.buffer.letters
+
+        if(letters.length < buffer.length) {
+            return false
+        }
+
+        // Buffer check
+        for(let i = 0; i < buffer.length; i++) {
+            if(buffer[i] !== letters[i]) {
+                return false
+            }
+        }
+
+        // Tree check
+        while(true) {
+
+            break
+        }
+
+        console.log(letters)
+    
+        return true
     }
 
     getRandomSolution() {
