@@ -4,102 +4,18 @@ import type { FaceColors, FaceLetters } from './Face'
 import Face from './Face'
 import Notation from './Notation'
 import type RubiksCube from './RubiksCube'
-
-const _PARITY = new Notation(`R U' R' U' R U R D R' U' R D' R' U2 R' U'`)
-
-export class BlindSolution {
-    edge: {
-        letters: FaceLetters[],
-        moves: Notation
-    }
-    corner: {
-        letters: FaceLetters[],
-        moves: Notation
-    }
-
-    letters: FaceLetters[]
-    moves: Notation
-    parity: Notation
-
-    constructor(edgeMoves: FaceLetters[], edgeSolution: Notation, cornerMoves: FaceLetters[], cornerSolution: Notation) {
-        this.edge = {
-                letters: edgeMoves,
-                moves: edgeSolution
-        }
-
-        this.corner = {
-            letters: cornerMoves,
-            moves: cornerSolution
-        }
-
-        this.parity = (edgeMoves.length % 2 === 1 && cornerMoves.length % 2 === 1) ? _PARITY : new Notation('')
-
-        if(this.parity) {
-            this.moves = Notation.combine(edgeSolution, BlindSolver.PARITY, cornerSolution)
-        } else {
-            this.moves = Notation.combine(edgeSolution, cornerSolution)
-        }
-        
-        this.letters = [...edgeMoves, ...cornerMoves]
-    }
-
-    toString() {
-        let edgeString = ''
-        let cornerString = ''
-        
-        for(let i = 0; i < this.edge.letters.length; i+=2) {
-            const x = this.edge.letters[i]
-            const y = this.edge.letters[i + 1] || ''
-            
-            edgeString += `${x}${y} `
-        }
-
-        for(let i = 0; i < this.corner.letters.length; i+=2) {
-            const x = this.corner.letters[i]
-            const y = this.corner.letters[i + 1] || ''
-            
-            cornerString += `${x}${y} `
-        }
-
-        return {
-            edge: edgeString.trim(),
-            corner: cornerString.trim()
-        }
-    }
-}
-
-export interface CycleSolution {
-    solvedCubes: Cube[]
-    solvedMoves: FaceLetters[]
-    unsolvedCubes: Cube[]
-    parent: CycleSolution | null
-    level: number
-}
-
-export class TreeSolution extends Array<CycleSolution> {
-    depth: number
-    totalBranches: number
-
-    constructor(cycleSolutions: CycleSolution[], depth: number, totalBranches: number) {
-        super()
-
-        this.depth = depth
-        this.totalBranches = totalBranches
-
-        this.push(...cycleSolutions)
-    }
-}
+import { ParticularBlindSolution, GeneralBlindSolution, type CycleSolution, TreeSolution } from './Solution'
 
 /**
  * @link https://jperm.net/bld/
  */
 export default class BlindSolver {
     rubiksCube: RubiksCube
-    solutions: BlindSolution[]
+    solutions: ParticularBlindSolution[]
 
     static EDGE_SWAP = new Notation(`R U R' U' R' F R2 U' R' U' R U R' F'`)
     static CORNER_SWAP = new Notation(`R U' R' U' R U R' F' R U R' U' R' F R`)
-    static PARITY = _PARITY
+    static PARITY = new Notation(`R U' R' U' R U R D R' U' R D' R' U2 R' U'`)
 
     static EDGE_BUFFER = new Set(['B', 'M'])
     static EDGE_BUFFER_TARGET_SPACE: FaceLetters = "B"
@@ -169,7 +85,7 @@ export default class BlindSolver {
         this.solutions = []
     }
 
-    lettersToNotation(type: 'edge' | 'corner', letters: FaceLetters[]) {
+    static lettersToNotation(type: 'edge' | 'corner', letters: FaceLetters[]) {
         const moves = new Notation()
         
         for(let i = 0; i < letters.length; i++) {
@@ -361,6 +277,7 @@ export default class BlindSolver {
             solvedMoves: Array.from(solvedMoves),
             unsolvedCubes: Array.from(cubes),
             parent: null,
+            branches: [],
             level: 0
         }
     }
@@ -504,6 +421,11 @@ export default class BlindSolver {
                 // console.log(cycle.solvedMoves.join(' '), cycle.unsolvedCubes.length)
                 
                 cycle.parent = _previousBranch || null
+
+                if(_previousBranch) {
+                    _previousBranch.branches.push(cycle)
+                }
+
                 _ref.totalBranches++
 
                 tree.push(cycle)
@@ -516,7 +438,6 @@ export default class BlindSolver {
             // console.log(branch.unsolvedCubes.length)
 
             branch.level += previousLevel + 1
-
             _ref.depth = Math.max(_ref.depth, branch.level)
 
             this.solveAllNonBufferSolutions(branch.unsolvedCubes, branch, _ref)
@@ -601,7 +522,7 @@ export default class BlindSolver {
      * 4. Solve for parity if BOTH edges and corners are BOTH ODD number of solves
      * 5. Repeat for corner solve
      */
-    findSolution() {
+    findParticularSolution() {
         const edgeMoves: FaceLetters[] = []
         const cornerMoves: FaceLetters[] = []
         let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
@@ -641,17 +562,33 @@ export default class BlindSolver {
             cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
         }
         
-        const edgeSolution = this.lettersToNotation('edge', edgeMoves)
-        const cornerSolution = this.lettersToNotation('corner', cornerMoves)
+        const edgeSolution = BlindSolver.lettersToNotation('edge', edgeMoves)
+        const cornerSolution = BlindSolver.lettersToNotation('corner', cornerMoves)
 
-        return new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+        return new ParticularBlindSolution({
+            edge: {
+                moves: edgeSolution,
+                letters: edgeMoves
+            },
+            corner: {
+                moves: cornerSolution,
+                letters: cornerMoves
+            }
+        })
     }
 
-    findAllSolutions() {
-        const edgeMoves: FaceLetters[] = []
-        const cornerMoves: FaceLetters[] = []
+    /**
+     * @description
+     * Finds a general solution by using a tree structure to determine all possible solutions.
+     */
+    findGeneralSolution() {
+        const edgeLetters: FaceLetters[] = []
         let unsolvedEdges: Cube[] = this.getUnsolvedEdges()
+        let edgeTreeSolution: TreeSolution
+
+        const cornerLetters: FaceLetters[] = []
         let unsolvedCorners: Cube[] = this.getUnsolvedCorners()
+        let cornerTreeSolution: TreeSolution
 
         if(unsolvedEdges.length !== 0) {
             const edgeBufferSolve = this.solveBuffer(
@@ -660,18 +597,14 @@ export default class BlindSolver {
                 unsolvedEdges
             )
 
-            edgeMoves.push(...edgeBufferSolve!.solvedMoves)
+            edgeLetters.push(...edgeBufferSolve!.solvedMoves)
             unsolvedEdges = edgeBufferSolve!.unsolvedCubes
         }
 
         if(unsolvedEdges.length !== 0) {
-            console.log(
-                this.solveAllNonBufferSolutions(unsolvedEdges)
-            )
-
-            // const edgeNonBufferSolve = this.solveNonBuffer(unsolvedEdges)
-
-            // edgeMoves.push(...edgeNonBufferSolve!.solvedMoves)
+            edgeTreeSolution = this.solveAllNonBufferSolutions(unsolvedEdges)!
+        } else {
+            edgeTreeSolution = new TreeSolution([], 0, 0)
         }
 
         if(unsolvedCorners.length !== 0) {
@@ -681,24 +614,36 @@ export default class BlindSolver {
                 unsolvedCorners
             )
 
-            cornerMoves.push(...cornerBufferSolve!.solvedMoves)
+            cornerLetters.push(...cornerBufferSolve!.solvedMoves)
             unsolvedCorners = cornerBufferSolve!.unsolvedCubes
         }
 
         if(unsolvedCorners.length !== 0) {
-            console.log(
-                this.solveAllNonBufferSolutions(unsolvedEdges)
-            )
-
-            // const cornerNonBufferSolve = this.solveNonBuffer(unsolvedCorners)
-
-            // cornerMoves.push(...cornerNonBufferSolve!.solvedMoves)
+            cornerTreeSolution = this.solveAllNonBufferSolutions(unsolvedCorners)!
+        } else {
+            cornerTreeSolution = new TreeSolution([], 0, 0)
         }
-        
-        // const edgeSolution = this.lettersToNotation('edge', edgeMoves)
-        // const cornerSolution = this.lettersToNotation('corner', cornerMoves)
 
-        // return new BlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
+        const edgeBufferMoves = BlindSolver.lettersToNotation('edge', edgeLetters)
+        const cornerBufferMoves = BlindSolver.lettersToNotation('corner', cornerLetters)
+
+        return new GeneralBlindSolution({
+            edge: {
+                buffer: {
+                    letters: edgeLetters,
+                    moves: edgeBufferMoves,
+                },
+                tree: edgeTreeSolution
+            },
+            corner: {
+                buffer: {
+                    letters: cornerLetters,
+                    moves: cornerBufferMoves,
+                },
+                tree: cornerTreeSolution
+            }
+        })
+        // return new ParticularBlindSolution(edgeMoves, edgeSolution, cornerMoves, cornerSolution)
     }
 
     solve() {
@@ -707,7 +652,7 @@ export default class BlindSolver {
         this.setAlignment()
 
         this.solutions = []
-        this.solutions.push(this.findSolution())
+        // this.solutions.push(this.findSolution())
 
         // this.solutions.forEach(s => console.warn(s.letters.join(' ')))
 

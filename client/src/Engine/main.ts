@@ -48,11 +48,11 @@ export function test(canvas: HTMLCanvasElement) {
     // Edge Test
     // rubiksCube.turnWithNotation(test1)
     // rubiksCube.turnWithNotation(test4)
-    // rubiksCube.turnWithNotation(test9)
+    rubiksCube.turnWithNotation(test9)
 
     // Edge & Corner Test
     // rubiksCube.turnWithNotation(test2)
-    rubiksCube.turnWithNotation(test3)
+    // rubiksCube.turnWithNotation(test3)
     // rubiksCube.turnWithNotation(test5)
     // rubiksCube.turnWithNotation(test6)
     // rubiksCube.turnWithNotation(test7)
@@ -60,7 +60,11 @@ export function test(canvas: HTMLCanvasElement) {
 
     // rubiksCube.scramble(10)
 
-    solver.findAllSolutions()
+    console.log(
+        solver.findParticularSolution(),
+        solver.findGeneralSolution()
+    )
+        // console.log(solver.findParticularSolution())
 
     // solver.solve()
     // console.log(solver.solutions[0].toString())
