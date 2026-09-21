@@ -68,6 +68,10 @@ export function test(canvas: HTMLCanvasElement) {
         generalSolution
     )
 
+    console.log(
+        generalSolution.validate('DIQI', '')
+    )
+
     // console.log(solver.findParticularSolution())
 
     // solver.solve()

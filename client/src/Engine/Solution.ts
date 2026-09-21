@@ -139,7 +139,7 @@ export class GeneralBlindSolution {
      * more ways to solve by mixing the order of which solution goes first but this is the 
      * simplest way.
      */
-    validateSolution(type: 'edge' | 'corner', letters: string | FaceLetters[]) {
+    validateParticularSolution(type: 'edge' | 'corner', letters: string | FaceLetters[]) {
         let currentLetters: FaceLetters[]
         
         if(typeof letters === 'string') {
@@ -151,17 +151,20 @@ export class GeneralBlindSolution {
 
         let tree: TreeSolution | CycleSolution[] = type === 'edge' ? this.edge.tree : this.corner.tree
         const buffer = type === 'edge' ? this.edge.buffer.letters : this.corner.buffer.letters
-
-        if(letters.length < buffer.length) {
-            return false
-        }
-
-        const lettersSolution: FaceLetters[] = []
         const result = {
             letters: letters,
             failPath: -1,
             success: true
         }
+
+        if(letters.length < buffer.length) {
+            result.success = false
+            result.failPath = letters.length - 1
+
+            return result
+        }
+
+        const lettersSolution: FaceLetters[] = []
 
         // Buffer check
         for(let i = 0; i < buffer.length; i++) {
@@ -238,6 +241,25 @@ export class GeneralBlindSolution {
         }
     
         return result
+    }
+
+    validate(edgeLetters: string | FaceLetters[], cornerLetters: string | FaceLetters[]) {
+        const edgeValidation = this.validateParticularSolution('edge', edgeLetters)
+        const cornerValidation = this.validateParticularSolution('corner', cornerLetters)
+    
+        const edgeMoves = BlindSolver.lettersToNotation('edge', edgeValidation.letters)
+        const cornerMoves = BlindSolver.lettersToNotation('corner', cornerValidation.letters)
+        
+        return new ParticularBlindSolution({
+             edge: {
+                letters: edgeValidation.letters,
+                moves: edgeMoves
+            },
+            corner: {
+                letters: cornerValidation.letters,
+                moves: cornerMoves
+            }
+        })
     }
 
     getRandomSolution() {
