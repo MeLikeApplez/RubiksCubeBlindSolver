@@ -133,30 +133,111 @@ export class GeneralBlindSolution {
         return cycles
     }
 
-    isValidSolution(type: 'edge' | 'corner', letters: FaceLetters[]) {
-        const tree = type === 'edge' ? this.edge.tree : this.corner.tree
+    /**
+     * @description
+     * Checks buffer solution first then cycle solution in this order ONLY. There are 
+     * more ways to solve by mixing the order of which solution goes first but this is the 
+     * simplest way.
+     */
+    validateSolution(type: 'edge' | 'corner', letters: string | FaceLetters[]) {
+        let currentLetters: FaceLetters[]
+        
+        if(typeof letters === 'string') {
+            currentLetters = Face.stringToArray(letters)
+            letters = Array.from(currentLetters)
+        } else {
+            currentLetters = Array.from(letters)
+        }
+
+        let tree: TreeSolution | CycleSolution[] = type === 'edge' ? this.edge.tree : this.corner.tree
         const buffer = type === 'edge' ? this.edge.buffer.letters : this.corner.buffer.letters
 
         if(letters.length < buffer.length) {
             return false
         }
 
+        const lettersSolution: FaceLetters[] = []
+        const result = {
+            letters: letters,
+            failPath: -1,
+            success: true
+        }
+
         // Buffer check
         for(let i = 0; i < buffer.length; i++) {
             if(buffer[i] !== letters[i]) {
-                return false
+                // console.error(`Fails at index "${i}",`, letters[i])
+
+                result.failPath = i
+                result.success = false
+                
+                return result
             }
+
+            currentLetters.shift()
+            lettersSolution.push(buffer[i])
         }
 
         // Tree check
+        const pathTaken: number[] = []
+        let spliceCount = buffer.length
+
         while(true) {
+            if(tree.length === 0) {
+                if(currentLetters.length !== 0) {
+                    // console.error('Overflow')
+                
+                    result.failPath = letters.length -  currentLetters.length
+                    result.success = false
 
-            break
+                    return result
+                }
+                
+                break
+            }
+
+            for(let i = 0; i < tree.length; i++) {
+                const branch = tree[i]
+                let match = false
+                let spliceLength = 0
+
+                for(let j = 0; j < branch.solvedMoves.length; j++) {
+                    const move = branch.solvedMoves[j]
+
+                    if(move !== currentLetters[j]) {
+                        break
+                    }
+
+                    if(j === branch.solvedMoves.length - 1) {
+                        spliceLength = branch.solvedMoves.length
+                        match = true
+                    }
+                }
+
+                if(match) {
+                    pathTaken.push(i)
+
+                    currentLetters.splice(0, spliceLength)
+                    spliceCount += spliceLength
+
+                    break
+                }
+
+                if(!match && i === tree.length - 1) {
+                    // console.error('Incorrect Letter, fails at index ' + spliceCount)
+
+                    result.failPath = spliceCount
+                    result.success = false
+
+                    return result
+                }
+            }
+
+            const lastPath = pathTaken[pathTaken.length - 1]
+            tree = tree[lastPath].branches
         }
-
-        console.log(letters)
     
-        return true
+        return result
     }
 
     getRandomSolution() {

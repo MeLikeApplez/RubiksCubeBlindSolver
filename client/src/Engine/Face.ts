@@ -160,6 +160,18 @@ export default class Face {
         }
     }
 
+    static stringToArray(lettersString: string) {
+        lettersString = lettersString.replace(/\s/g, '').toUpperCase()
+
+        const invalid = lettersString.match(/[^A-X]/g)
+
+        if(invalid !== null) {
+            throw new Error(`Invalid character "${invalid.join("")}"!`)
+        }
+
+        return lettersString.split('') as FaceLetters[]
+    }
+
     setColor(color: FaceColors) {
         this.color = color
     }

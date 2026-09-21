@@ -46,8 +46,8 @@ export function test(canvas: HTMLCanvasElement) {
     rubiksCube.addToScene(scene)
     
     // Edge Test
-    // rubiksCube.turnWithNotation(test1)
-    rubiksCube.turnWithNotation(test4)
+    rubiksCube.turnWithNotation(test1)
+    // rubiksCube.turnWithNotation(test4)
     // rubiksCube.turnWithNotation(test9)
 
     // Edge & Corner Test
@@ -66,10 +66,6 @@ export function test(canvas: HTMLCanvasElement) {
     console.log(
         // particularSolution,
         generalSolution
-    )
-
-    console.log(
-        generalSolution.isValidSolution('edge', ['A',])
     )
 
     // console.log(solver.findParticularSolution())
