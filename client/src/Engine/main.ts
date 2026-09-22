@@ -46,7 +46,7 @@ export function test(canvas: HTMLCanvasElement) {
     rubiksCube.addToScene(scene)
     
     // Edge Test
-    rubiksCube.turnWithNotation(test1)
+    // rubiksCube.turnWithNotation(test1)
     // rubiksCube.turnWithNotation(test4)
     // rubiksCube.turnWithNotation(test9)
 
@@ -54,7 +54,7 @@ export function test(canvas: HTMLCanvasElement) {
     // rubiksCube.turnWithNotation(test2)
     // rubiksCube.turnWithNotation(test3)
     // rubiksCube.turnWithNotation(test5)
-    // rubiksCube.turnWithNotation(test6)
+    rubiksCube.turnWithNotation(test6)
     // rubiksCube.turnWithNotation(test7)
     // rubiksCube.turnWithNotation(test8)
 
@@ -68,8 +68,19 @@ export function test(canvas: HTMLCanvasElement) {
         generalSolution
     )
 
+    // const validate = generalSolution.validate('CJ DX WE HF RA O KN Q', 'XC BM DO K')
+    const validate = generalSolution.validate('QU SD EC OJ HT GC', 'BH CT BL DU KV')
+
+    console.warn(
+        // generalSolution.validate('', ''),
+        validate
+    )
+
+    const randomSolution = generalSolution.getRandomSolution()
+
     console.log(
-        generalSolution.validate('DIQI', '')
+        randomSolution.solution.edge.letters,
+        randomSolution.solution.corner.letters
     )
 
     // console.log(solver.findParticularSolution())

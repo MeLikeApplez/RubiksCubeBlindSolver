@@ -105,6 +105,25 @@ interface GeneralBlindSolutionOptions {
     }
 }
 
+interface ValidatedParticularSolutionOutput {
+    type: 'edge' | 'corner'
+    letters: FaceLetters[],
+    pathTaken: number[],
+    failPath: number,
+    failReason: string,
+    success: boolean
+} 
+
+type ValidatedGeneralSolutionOutput = {
+    success: true
+    solution: ParticularBlindSolution
+    check: null
+} | {
+    success: false
+    solution: null
+    check: ValidatedParticularSolutionOutput
+}
+
 export class GeneralBlindSolution {
     edge: GeneralBlindSolutionOptions['edge']
     corner: GeneralBlindSolutionOptions['corner']
@@ -139,7 +158,7 @@ export class GeneralBlindSolution {
      * more ways to solve by mixing the order of which solution goes first but this is the 
      * simplest way.
      */
-    validateParticularSolution(type: 'edge' | 'corner', letters: string | FaceLetters[]) {
+    validateParticularSolution(type: 'edge' | 'corner', letters: string | FaceLetters[], debug=false):ValidatedParticularSolutionOutput {
         let currentLetters: FaceLetters[]
         
         if(typeof letters === 'string') {
@@ -151,15 +170,22 @@ export class GeneralBlindSolution {
 
         let tree: TreeSolution | CycleSolution[] = type === 'edge' ? this.edge.tree : this.corner.tree
         const buffer = type === 'edge' ? this.edge.buffer.letters : this.corner.buffer.letters
+        const pathTaken: number[] = []
         const result = {
+            type: type,
             letters: letters,
+            pathTaken: pathTaken,
             failPath: -1,
+            failReason: '',
             success: true
         }
 
         if(letters.length < buffer.length) {
             result.success = false
             result.failPath = letters.length - 1
+            result.failReason = '[Buffer] Input solution is too small'
+            
+            if(debug) console.error(result.failReason)
 
             return result
         }
@@ -169,7 +195,9 @@ export class GeneralBlindSolution {
         // Buffer check
         for(let i = 0; i < buffer.length; i++) {
             if(buffer[i] !== letters[i]) {
-                // console.error(`Fails at index "${i}",`, letters[i])
+                result.failReason = `[Cycle] Fails at index "${i}"`
+
+                if(debug) console.error(result.failReason, letters[i])
 
                 result.failPath = i
                 result.success = false
@@ -182,13 +210,14 @@ export class GeneralBlindSolution {
         }
 
         // Tree check
-        const pathTaken: number[] = []
         let spliceCount = buffer.length
 
         while(true) {
             if(tree.length === 0) {
                 if(currentLetters.length !== 0) {
-                    // console.error('Overflow')
+                    result.failReason = `[Cycle] Input solution is too big`
+
+                    if(debug) console.error(result.failReason)
                 
                     result.failPath = letters.length -  currentLetters.length
                     result.success = false
@@ -227,7 +256,9 @@ export class GeneralBlindSolution {
                 }
 
                 if(!match && i === tree.length - 1) {
-                    // console.error('Incorrect Letter, fails at index ' + spliceCount)
+                    result.failReason = `[Cycle] Input is incomplete or wrong, fails at index ${spliceCount}`
+
+                    if(debug) console.error(result.failReason)
 
                     result.failPath = spliceCount
                     result.success = false
@@ -243,23 +274,51 @@ export class GeneralBlindSolution {
         return result
     }
 
-    validate(edgeLetters: string | FaceLetters[], cornerLetters: string | FaceLetters[]) {
-        const edgeValidation = this.validateParticularSolution('edge', edgeLetters)
-        const cornerValidation = this.validateParticularSolution('corner', cornerLetters)
+    /**
+     * @description
+     * Validates both edge and corner moves. Checks buffer solution first then cycle solution in this order ONLY.
+     */
+    validate(edgeLetters: string | FaceLetters[], cornerLetters: string | FaceLetters[], debug=false): ValidatedGeneralSolutionOutput {
+        const edgeValidation = this.validateParticularSolution('edge', edgeLetters, debug)
+        const cornerValidation = this.validateParticularSolution('corner', cornerLetters, debug)
     
+        if(!edgeValidation.success) {
+            // console.error('Edge validation fail', edgeValidation)
+        
+            return {
+                success: false,
+                solution: null,
+                check: edgeValidation
+            }
+        }
+
+        if(!cornerValidation.success) {
+            // console.error('Corner validation fail', cornerValidation)
+        
+            return {
+                success: false,
+                solution: null,
+                check: cornerValidation
+            }
+        }
+
         const edgeMoves = BlindSolver.lettersToNotation('edge', edgeValidation.letters)
         const cornerMoves = BlindSolver.lettersToNotation('corner', cornerValidation.letters)
         
-        return new ParticularBlindSolution({
-             edge: {
-                letters: edgeValidation.letters,
-                moves: edgeMoves
-            },
-            corner: {
-                letters: cornerValidation.letters,
-                moves: cornerMoves
-            }
-        })
+        return {
+            success: true,
+            solution: new ParticularBlindSolution({
+                edge: {
+                    letters: edgeValidation.letters,
+                    moves: edgeMoves
+                },
+                corner: {
+                    letters: cornerValidation.letters,
+                    moves: cornerMoves
+                }
+            }),
+            check: null
+        }
     }
 
     getRandomSolution() {
